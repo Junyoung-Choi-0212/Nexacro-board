@@ -4,25 +4,60 @@
     <Layouts>
       <Layout width="1920" height="1080" screenid="Desktop_screen">
         <TextField id="id_input" taborder="0" labeltext="ID" left="706" top="286" width="508" height="64"/>
-        <TextField id="pw_input" taborder="1" labeltext="PW" left="706" top="540" width="508" height="64"/>
-        <Button id="login_btn" taborder="2" text="로그인" left="706" top="704" width="508" height="46" onclick="login_btn_onclick"/>
+        <TextField id="pw_input" taborder="1" labeltext="PW" left="706" top="390" width="508" height="64"/>
+        <Button id="login_btn" taborder="2" text="로그인" left="706" top="524" width="508" height="46" onclick="login_btn_onclick"/>
       </Layout>
     </Layouts>
     <Objects>
-      <Dataset id="Dataset00"/>
+      <Dataset id="ds_login">
+        <ColumnInfo>
+          <Column id="id" type="STRING" size="256"/>
+          <Column id="pw" type="STRING" size="256"/>
+        </ColumnInfo>
+      </Dataset>
     </Objects>
     <Script type="xscript5.1"><![CDATA[
 this.login_btn_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
 {
-	var svcID = "helloTest";
-	var svcURL = "http://localhost:8080/api/hello";
-	var inData = "";
+	// 1. 입력값 가져오기
+	var id = this.id_input.value;
+	var pw = this.pw_input.value;
+
+	// 2. ds_login 데이터셋 초기화 후 값 세팅
+	this.ds_login.clearData();
+	this.ds_login.addRow();
+	this.ds_login.setColumn(0, "id", id);
+	this.ds_login.setColumn(0, "pw", pw);
+
+	// 3. 서버로 전송
+	var svcID = "login";
+	var svcURL = "http://127.0.0.1:8080/api/login";
+	var inData = "ds_login=ds_login";
 	var outData = "";
 	var strArg = "";
-	var callbackFunc = "fnCallback";
+	var callbackFunc = "loginResult";
 
-	this.transaction(svcID, svcURL, inData, outData, strArg, callbackFunc);
+	this.transaction(svcID, svcURL, inData, outData, strArg, callbackFunc, "POST");
 };
-]]></Script>
+
+this.loginResult = function(svcID, errorCode, errorMsg)
+{
+	if (svcID == "login")
+	{
+		if (errorCode == 0)
+		{
+			alert("✅ 로그인 성공!");
+// 			application.av_userId = this.id_input.value;
+// 			this.go("frame::Main.xfdl");
+		}
+		else
+		{
+			alert("❌ 로그인 실패: " + errorMsg);
+			this.id_input.set_value("");
+			this.pw_input.set_value("");
+			this.id_input.setFocus();
+		}
+	}
+};]]></Script>
   </Form>
 </FDL>
