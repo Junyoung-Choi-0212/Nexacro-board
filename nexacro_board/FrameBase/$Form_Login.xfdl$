@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FDL version="2.1">
+  <Form id="Form_Work" width="1920" height="1080" titletext="Nexacro Board">
+    <Layouts>
+      <Layout width="1920" height="1080" screenid="Desktop_screen">
+        <TextField id="id_input" taborder="0" labeltext="ID" left="706" top="286" width="508" height="64"/>
+        <TextField id="pw_input" taborder="1" labeltext="PW" left="706" top="540" width="508" height="64"/>
+        <Button id="login_btn" taborder="2" text="로그인" left="706" top="704" width="508" height="46" onclick="login_btn_onclick"/>
+      </Layout>
+    </Layouts>
+    <Objects>
+      <Dataset id="Dataset00"/>
+    </Objects>
+    <Script type="xscript5.1"><![CDATA[
+this.login_btn_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
+{
+	var svcID = "helloTest";
+	var svcURL = "http://localhost:8080/api/hello";
+	var inData = "";
+	var outData = "";
+	var strArg = "";
+	var callbackFunc = "fnCallback";
+
+	this.transaction(svcID, svcURL, inData, outData, strArg, callbackFunc);
+};
+]]></Script>
+  </Form>
+</FDL>
