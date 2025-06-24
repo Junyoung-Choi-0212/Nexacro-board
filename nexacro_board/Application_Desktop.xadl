@@ -3,7 +3,7 @@
   <Application id="Application_Desktop" screenid="Desktop_screen">
     <Layout>
       <MainFrame id="mainframe" showtitlebar="true" showstatusbar="true" left="0" top="0" width="1920" height="1080" titletext="FullFrame">
-        <ChildFrame id="WorkFrame" showtitlebar="false" showstatusbar="false" formurl="FrameBase::Form_Work.xfdl"/>
+        <ChildFrame id="WorkFrame" formurl="FrameBase::Form_Login.xfdl"/>
       </MainFrame>
     </Layout>
   </Application>

@@ -1,5 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <AppVariables version="2.0">
   <Datasets/>
-  <Variables/>
+  <Variables>
+    <Variable id="login_userId"/>
+    <Variable id="login_userName"/>
+    <Variable id="login_isAdmin"/>
+  </Variables>
+  <DataObjects/>
 </AppVariables>

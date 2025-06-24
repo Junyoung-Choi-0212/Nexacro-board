@@ -7,6 +7,10 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -77,13 +81,49 @@ public class MemberController {
         out.println("<Root xmlns=\"http://www.nexacroplatform.com/platform/dataset\">");
         out.println("<Parameters>");
         if (result.isPresent()) {
+            Member member = result.get();
+
             out.println("<Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
             out.println("<Parameter id=\"ErrorMsg\" type=\"string\">SUCC</Parameter>");
+
+            // ➕ 추가 응답 값
+            out.println("<Parameter id=\"name\" type=\"string\">" + member.getName() + "</Parameter>");
+            out.println("<Parameter id=\"isAdmin\" type=\"boolean\">" + member.is_admin() + "</Parameter>");
         } else {
             out.println("<Parameter id=\"ErrorCode\" type=\"int\">-1</Parameter>");
-            out.println("<Parameter id=\"ErrorMsg\" type=\"string\">로그인 실패</Parameter>");
+            out.println("<Parameter id=\"ErrorMsg\" type=\"string\">해당하는 유저가 없습니다.</Parameter>");
         }
         out.println("</Parameters>");
+        out.println("</Root>");
+    }
+    
+    @GetMapping("/members")
+    public void getMembers(HttpServletResponse response) throws IOException {
+        List<Member> members = repo.findAll();
+
+        response.setContentType("text/xml; charset=UTF-8");
+        PrintWriter out = response.getWriter();
+
+        out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        out.println("<Root xmlns=\"http://www.nexacroplatform.com/platform/dataset\">");
+        out.println("<Dataset id=\"output\">");
+        out.println("<ColumnInfo>");
+        out.println("    <Column id=\"id\" type=\"STRING\" size=\"256\"/>");
+        out.println("    <Column id=\"name\" type=\"STRING\" size=\"256\"/>");
+        out.println("    <Column id=\"email\" type=\"STRING\" size=\"256\"/>");
+        out.println("</ColumnInfo>");
+        for (Member m : members) {
+            out.println("<Row>");
+            out.println("    <Col id=\"id\">" + m.getId() + "</Col>");
+            out.println("    <Col id=\"name\">" + m.getName() + "</Col>");
+            out.println("    <Col id=\"email\">" + m.getEmail() + "</Col>");
+            out.println("</Row>");
+        }
+        out.println("</Dataset>");
+        out.println("  <Parameters>");
+        out.println("    <Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
+        out.println("    <Parameter id=\"ErrorMsg\" type=\"string\">SUCCESS</Parameter>");
+        out.println("  </Parameters>");
         out.println("</Root>");
     }
 }

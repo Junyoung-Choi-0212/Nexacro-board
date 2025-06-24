@@ -4,8 +4,9 @@
     <Layouts>
       <Layout width="1920" height="1080" screenid="Desktop_screen">
         <TextField id="id_input" taborder="0" labeltext="ID" left="706" top="286" width="508" height="64"/>
-        <TextField id="pw_input" taborder="1" labeltext="PW" left="706" top="390" width="508" height="64"/>
-        <Button id="login_btn" taborder="2" text="로그인" left="706" top="524" width="508" height="46" onclick="login_btn_onclick"/>
+        <Button id="login_btn" taborder="1" text="로그인" left="706" top="524" width="508" height="46" onclick="login_btn_onclick"/>
+        <Edit id="pw_input" taborder="2" left="706" top="400" width="508" height="50" password="true"/>
+        <Static id="pw_label" taborder="3" text="PW" left="720" top="390" width="39" height="22"/>
       </Layout>
     </Layouts>
     <Objects>
@@ -23,13 +24,26 @@ this.login_btn_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
 	var id = this.id_input.value;
 	var pw = this.pw_input.value;
 
-	// 2. ds_login 데이터셋 초기화 후 값 세팅
+	// 2. 유효성 검사
+	if (!id || id.trim() == "") {
+		alert("아이디를 입력해주세요.");
+		this.id_input.setFocus();
+		return;
+	}
+
+	if (!pw || pw.trim() == "") {
+		alert("비밀번호를 입력해주세요.");
+		this.pw_input.setFocus();
+		return;
+	}
+
+	// 3. ds_login 데이터셋 초기화 후 값 세팅
 	this.ds_login.clearData();
 	this.ds_login.addRow();
 	this.ds_login.setColumn(0, "id", id);
 	this.ds_login.setColumn(0, "pw", pw);
 
-	// 3. 서버로 전송
+	// 4. 서버로 전송
 	var svcID = "login";
 	var svcURL = "http://127.0.0.1:8080/api/login";
 	var inData = "ds_login=ds_login";
@@ -47,8 +61,22 @@ this.loginResult = function(svcID, errorCode, errorMsg)
 		if (errorCode == 0)
 		{
 			alert("✅ 로그인 성공!");
-// 			application.av_userId = this.id_input.value;
-// 			this.go("frame::Main.xfdl");
+			var app = nexacro.getApplication();
+
+			app.login_userId = this.id_input.value;
+			app.login_userName = this.ds_login.getColumn(0, "name");
+			app.login_isAdmin = this.ds_login.getColumn(0, "isAdmin") == "true";
+
+			// WorkFrame 찾아서 formurl 설정
+			var workframe = app.mainframe.frame || app.mainframe.VFrameSet || app.mainframe.frames[0];
+			if (workframe && workframe.set_formurl)
+			{
+				workframe.set_formurl("FrameBase::Form_Main.xfdl");
+			}
+			else
+			{
+				alert("❗ WorkFrame을 찾을 수 없거나 set_formurl 지원 안 함");
+			}
 		}
 		else
 		{

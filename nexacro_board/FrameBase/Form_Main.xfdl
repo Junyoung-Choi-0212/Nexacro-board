@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FDL version="2.1">
+  <Form id="Form_Main" width="1280" height="720" titletext="New Form" onload="Form_Main_onload">
+    <Layouts>
+      <Layout height="720" width="1280">
+        <Grid id="memberGrid" taborder="0" binddataset="ds_memberList" left="10" top="10" right="10" bottom="10">
+          <Formats>
+            <Format id="default">
+              <Columns>
+                <Column size="200"/>
+                <Column size="300"/>
+                <Column size="400"/>
+              </Columns>
+              <Rows>
+                <Row size="24" band="head"/>
+                <Row size="24" band="body"/>
+              </Rows>
+              <Band id="head">
+                <Cell text="id"/>
+                <Cell col="1" text="name"/>
+                <Cell col="2" text="email"/>
+              </Band>
+              <Band id="body">
+                <Cell text="bind:id"/>
+                <Cell col="1" text="bind:name"/>
+                <Cell col="2" text="bind:email"/>
+              </Band>
+            </Format>
+          </Formats>
+        </Grid>
+        <Button id="btnAddUser" text="유저 추가" left="20" top="650" width="100" height="30" visible="false"/>
+        <Button id="btnDeleteUser" text="유저 삭제" left="130" top="650" width="100" height="30" visible="false"/>
+      </Layout>
+    </Layouts>
+    <Objects>
+      <Dataset id="ds_memberList">
+        <ColumnInfo>
+          <Column id="id" type="STRING" size="256"/>
+          <Column id="name" type="STRING" size="256"/>
+          <Column id="email" type="STRING" size="256"/>
+        </ColumnInfo>
+      </Dataset>
+    </Objects>
+    <Script type="xscript5.1"><![CDATA[this.Form_Main_onload = function(obj:Form, e:nexacro.LoadEventInfo)
+{
+	this.memberGrid.set_binddataset("ds_memberList");
+	trace("✅ Grid 바인딩 확인: " + this.memberGrid.binddataset);
+
+	if (app.login_isAdmin) {
+		this.btnAddUser.set_visible(true);
+		this.btnDeleteUser.set_visible(true);
+	}
+
+	var svcID = "selectMembers";
+	var svcURL = "http://127.0.0.1:8080/api/members";
+	var inData = "";
+	var outData = "ds_memberList=output";
+	var strArg = "";
+
+	this.transaction(svcID, svcURL, inData, outData, strArg, "fnCallback", "GET");
+};
+
+this.fnCallback = function(svcID, errCode, errMsg)
+{
+	trace('svcID: ' + svcID);
+	trace('errCode: ' + errCode);
+	trace('errMsg: ' + errMsg);
+
+	if (svcID === "selectMembers" && errCode === 0) {
+		if (errCode == 0) {
+			trace('row cnt: ' + this.ds_memberList.getRowCount());
+			for (var i = 0; i < this.ds_memberList.getRowCount(); i++) {
+				trace(this.ds_memberList.getColumn(i, "id") + ", " +
+				this.ds_memberList.getColumn(i, "name") + ", " +
+				this.ds_memberList.getColumn(i, "email"));
+			}
+		
+			var colCount = this.memberGrid.getFormatColCount();
+			for (var i = 0; i < colCount; i++) {
+				this.memberGrid.setFormatColProperty(i, "size", 300); // 숫자(px)로 지정
+			}
+		} else {
+			alert("조회 실패: " + errMsg);
+		}
+	}
+};]]></Script>
+  </Form>
+</FDL>

@@ -1,2 +1,2 @@
-INSERT INTO MEMBER (id, pw) VALUES ('test01', '1234');
-INSERT INTO MEMBER (id, pw) VALUES ('admin', 'adminpw');
+INSERT INTO MEMBER (id, name, pw, email, is_admin, join_date) VALUES ('test01', '테스트01', '1234', 'test01@test.com', FALSE, now());
+INSERT INTO MEMBER (id, name, pw, email, is_admin, join_date) VALUES ('admin', '관리자', 'adminpw', 'admin@admin.com', TRUE, now());
