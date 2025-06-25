@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.transaction.Transactional;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -36,13 +37,13 @@ public class MemberController {
 
     @PostMapping("/login")
     public void login(HttpServletRequest request, HttpServletResponse response) throws Exception {
-    	// 1. XML 읽기
+        // 1. XML 읽기
         String xml = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))
                 .lines().collect(Collectors.joining("\n"));
 
         // 2. DOM 파서 초기화
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true); // 네임스페이스 허용
+        factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document document = builder.parse(new InputSource(new StringReader(xml)));
 
@@ -51,9 +52,8 @@ public class MemberController {
         if (rowList.getLength() == 0) {
             throw new RuntimeException("No <Row> found in XML.");
         }
-        Element row = (Element) rowList.item(0);
 
-        // 4. <Col>들 순회하며 id/pw 추출
+        Element row = (Element) rowList.item(0);
         String id = null;
         String pw = null;
 
@@ -72,28 +72,42 @@ public class MemberController {
 
         Optional<Member> result = repo.findByIdAndPw(id, pw);
 
-        // 5. 응답 헤더
+        // 4. 응답 설정
         response.setContentType("text/xml; charset=UTF-8");
-
-        // 6. 응답 본문 작성
         PrintWriter out = response.getWriter();
+
         out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         out.println("<Root xmlns=\"http://www.nexacroplatform.com/platform/dataset\">");
-        out.println("<Parameters>");
+
         if (result.isPresent()) {
             Member member = result.get();
 
-            out.println("<Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
-            out.println("<Parameter id=\"ErrorMsg\" type=\"string\">SUCC</Parameter>");
+            // ✅ Dataset 형식으로 응답
+            out.println("<Dataset id=\"output\">");
+            out.println("  <ColumnInfo>");
+            out.println("    <Column id=\"name\" type=\"STRING\" size=\"256\"/>");
+            out.println("    <Column id=\"isAdmin\" type=\"STRING\" size=\"10\"/>");
+            out.println("  </ColumnInfo>");
+            out.println("  <Rows>");
+            out.println("    <Row>");
+            out.println("      <Col id=\"name\">" + member.getName() + "</Col>");
+            out.println("      <Col id=\"isAdmin\">" + member.isAdmin() + "</Col>");
+            out.println("    </Row>");
+            out.println("  </Rows>");
+            out.println("</Dataset>");
 
-            // ➕ 추가 응답 값
-            out.println("<Parameter id=\"name\" type=\"string\">" + member.getName() + "</Parameter>");
-            out.println("<Parameter id=\"isAdmin\" type=\"boolean\">" + member.is_admin() + "</Parameter>");
+            out.println("<Parameters>");
+            out.println("  <Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
+            out.println("  <Parameter id=\"ErrorMsg\" type=\"string\">SUCC</Parameter>");
+            out.println("</Parameters>");
         } else {
-            out.println("<Parameter id=\"ErrorCode\" type=\"int\">-1</Parameter>");
-            out.println("<Parameter id=\"ErrorMsg\" type=\"string\">해당하는 유저가 없습니다.</Parameter>");
+            // 실패 응답
+            out.println("<Parameters>");
+            out.println("  <Parameter id=\"ErrorCode\" type=\"int\">-1</Parameter>");
+            out.println("  <Parameter id=\"ErrorMsg\" type=\"string\">해당하는 유저가 없습니다.</Parameter>");
+            out.println("</Parameters>");
         }
-        out.println("</Parameters>");
+
         out.println("</Root>");
     }
     
@@ -106,24 +120,86 @@ public class MemberController {
 
         out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         out.println("<Root xmlns=\"http://www.nexacroplatform.com/platform/dataset\">");
+
         out.println("<Dataset id=\"output\">");
-        out.println("<ColumnInfo>");
+        out.println("  <ColumnInfo>");
         out.println("    <Column id=\"id\" type=\"STRING\" size=\"256\"/>");
         out.println("    <Column id=\"name\" type=\"STRING\" size=\"256\"/>");
         out.println("    <Column id=\"email\" type=\"STRING\" size=\"256\"/>");
-        out.println("</ColumnInfo>");
+        out.println("    <Column id=\"isAdmin\" type=\"STRING\" size=\"10\"/>"); // ✅ 관리자 여부 포함
+        out.println("  </ColumnInfo>");
+        out.println("  <Rows>");
         for (Member m : members) {
-            out.println("<Row>");
-            out.println("    <Col id=\"id\">" + m.getId() + "</Col>");
-            out.println("    <Col id=\"name\">" + m.getName() + "</Col>");
-            out.println("    <Col id=\"email\">" + m.getEmail() + "</Col>");
-            out.println("</Row>");
+            out.println("    <Row>");
+            out.println("      <Col id=\"id\">" + m.getId() + "</Col>");
+            out.println("      <Col id=\"name\">" + m.getName() + "</Col>");
+            out.println("      <Col id=\"email\">" + m.getEmail() + "</Col>");
+            out.println("      <Col id=\"isAdmin\">" + m.isAdmin() + "</Col>"); // ✅ 관리자 여부 포함
+            out.println("    </Row>");
         }
+        out.println("  </Rows>");
         out.println("</Dataset>");
-        out.println("  <Parameters>");
-        out.println("    <Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
-        out.println("    <Parameter id=\"ErrorMsg\" type=\"string\">SUCCESS</Parameter>");
-        out.println("  </Parameters>");
+
+        out.println("<Parameters>");
+        out.println("  <Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
+        out.println("  <Parameter id=\"ErrorMsg\" type=\"string\">SUCCESS</Parameter>");
+        out.println("</Parameters>");
+
+        out.println("</Root>");
+    }
+    
+    @Transactional
+    @PostMapping("/update")
+    public void updateMembers(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String xml = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))
+            .lines().collect(Collectors.joining("\n"));
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(new InputSource(new StringReader(xml)));
+
+        NodeList rows = doc.getElementsByTagNameNS("*", "Row");
+        for (int i = 0; i < rows.getLength(); i++) {
+            Element row = (Element) rows.item(i);
+            String id = null;
+            String name = null;
+            String email = null;
+            boolean isAdmin = false;
+
+            NodeList cols = row.getElementsByTagNameNS("*", "Col");
+            for (int j = 0; j < cols.getLength(); j++) {
+                Element col = (Element) cols.item(j);
+                switch (col.getAttribute("id")) {
+                    case "id": id = col.getTextContent(); break;
+                    case "name": name = col.getTextContent(); break;
+                    case "email": email = col.getTextContent(); break;
+                    case "isAdmin":
+                        String val = col.getTextContent();
+                        isAdmin = "1".equals(val) || "true".equalsIgnoreCase(val);
+                        break;
+                }
+            }
+
+            if (id != null) {
+                Member member = repo.findById(id).orElse(null);
+                if (member != null) {
+                    member.setName(name);
+                    member.setEmail(email);
+                    member.setAdmin(isAdmin);
+                    repo.save(member);
+                }
+            }
+        }
+
+        response.setContentType("text/xml; charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        out.println("<Root xmlns=\"http://www.nexacroplatform.com/platform/dataset\">");
+        out.println("<Parameters>");
+        out.println("<Parameter id=\"ErrorCode\" type=\"int\">0</Parameter>");
+        out.println("<Parameter id=\"ErrorMsg\" type=\"string\">SUCCESS</Parameter>");
+        out.println("</Parameters>");
         out.println("</Root>");
     }
 }
