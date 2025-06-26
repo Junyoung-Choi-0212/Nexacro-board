@@ -3,7 +3,7 @@
   <Form id="Form_Main" width="1280" height="720" titletext="New Form" onload="Form_Main_onload">
     <Layouts>
       <Layout height="720" width="1280">
-        <Grid id="memberGrid" taborder="0" binddataset="ds_memberList" left="10" top="70" right="10" bottom="80" onitemchanged="memberGrid_onitemchanged">
+        <Grid id="memberGrid" taborder="0" binddataset="ds_memberList" left="10" top="70" right="10" bottom="80" oncellclick="memberGrid_oncellclick" oneditclick="memberGrid_oneditclick">
           <Formats>
             <Format id="default">
               <Columns>
@@ -23,10 +23,9 @@
                 <Cell col="3" text="관리자"/>
               </Band>
               <Band id="body">
-                <!-- id는 수정 불가하게 처리 -->
                 <Cell text="bind:id" edittype="none"/>
-                <Cell col="1" text="bind:name"/>
-                <Cell col="2" text="bind:email"/>
+                <Cell col="1" text="bind:name" edittype="normal"/>
+                <Cell col="2" text="bind:email" edittype="normal"/>
                 <Cell col="3" text="bind:isAdmin" edittype="checkbox" displaytype="checkboxcontrol"/>
               </Band>
             </Format>
@@ -51,57 +50,68 @@
     <Script type="xscript5.1"><![CDATA[this.Form_Main_onload = function(obj, e) {
     var app = nexacro.getApplication();
     this.userName.set_text("안녕하세요, " + app.login_userName + "님!");
-
-    var ds = this.ds_memberList;  // Dataset
-
-    // If the logged-in user is an admin
-    if (app.login_isAdmin) {
-        this.btnAddUser.set_visible(true);
-        this.btnDeleteUser.set_visible(true);
-        this.btnSaveUser.set_visible(true);
-
-        // Admin has full access to modify name, email, and isAdmin
-        this.memberGrid.setCellProperty("body", 0, "edittype", "none"); // id is not editable
-        this.memberGrid.setCellProperty("body", 1, "edittype", "normal"); // name is editable
-        this.memberGrid.setCellProperty("body", 2, "edittype", "normal"); // email is editable
-        this.memberGrid.setCellProperty("body", 3, "edittype", "checkbox"); // isAdmin is editable
-
-    } else {
-        // Non-admin user (test01)
-        this.btnAddUser.set_visible(false);
-        this.btnDeleteUser.set_visible(false);
-        this.btnSaveUser.set_visible(true);
-
-        // Hide the isAdmin column for non-admin users
-        this.memberGrid.setCellProperty("body", 3, "edittype", "none"); // isAdmin is not editable
-
-        // Loop through dataset rows and set edit properties based on conditions
-        for (var i = 0; i < ds.getRowCount(); i++) {
-            var userId = ds.getColumn(i, "id");
-
-            // Hide the isAdmin column entirely for non-admin users
-            if (userId !== app.login_userId) {
-                // For other users, block edit for all fields
-                this.memberGrid.setCellProperty("body", 0, "edittype", "none", i); // id is not editable
-                this.memberGrid.setCellProperty("body", 1, "edittype", "none", i); // name is not editable
-                this.memberGrid.setCellProperty("body", 2, "edittype", "none", i); // email is not editable
-            } else {
-                // Allow editing name and email for the logged-in user (test01)
-                this.memberGrid.setCellProperty("body", 0, "edittype", "none", i); // id is not editable
-                this.memberGrid.setCellProperty("body", 1, "edittype", "normal", i); // name is editable
-                this.memberGrid.setCellProperty("body", 2, "edittype", "normal", i); // email is editable
-            }
-        }
-    }
-
+    this._login_id = app.login_userId;
+    this._isAdmin = app.login_isAdmin;
+    this.btnSaveUser.set_visible(true);
     this.fn_reload();
 };
 
-// Function to reload data from API
+this.fn_callback = function(svcID, errorCode, errorMsg) { 
+    if (svcID === "getMembers") {
+        if (errorCode != 0) {
+            alert("❌ 멤버 불러오기 실패: " + errorMsg);
+            return;
+        }
+
+        var isAdmin = this._isAdmin;
+        var grid = this.memberGrid;
+
+        grid.setFormatColProperty(0, "size", 0); // ID 숨김
+
+        if (isAdmin === true || isAdmin === "true") {
+            grid.setFormatColProperty(3, "size", 100); // 관리자 컬럼 보임
+        } else {
+            grid.setFormatColProperty(3, "size", 0); // 관리자 컬럼 숨김
+        }
+    }
+
+    if (svcID === "update") {
+        if (errorCode == 0) {
+            alert("✅ 변경사항 저장 완료!");
+        }
+    }
+};
+
+// ✅ 사용자가 클릭할 때 편집 가능 여부 판단
+this.memberGrid_oncellclick = function(obj, e) {
+    var ds = this.ds_memberList;
+    var grid = this.memberGrid;
+    var loginId = this._login_id;
+    var isAdmin = this._isAdmin;
+
+    if (e.row < 0 || e.col < 0) return;
+
+    var rowId = ds.getColumn(e.row, "id");
+
+    if (isAdmin === true || isAdmin === "true") {
+        grid.setCellProperty("body", 1, "edittype", "normal");
+        grid.setCellProperty("body", 2, "edittype", "normal");
+    } else {
+        // 본인 행일 경우에만 편집 허용
+        if ("" + rowId === "" + loginId) {
+            grid.setCellProperty("body", 1, "edittype", "normal");
+            grid.setCellProperty("body", 2, "edittype", "normal");
+        } else {
+            grid.setCellProperty("body", 1, "edittype", "none");
+            grid.setCellProperty("body", 2, "edittype", "none");
+        }
+    }
+};
+
 this.fn_reload = function() {
     this.transaction(
         "getMembers",
-        "http://127.0.0.1:8080/api/members",  // Your API endpoint
+        "http://127.0.0.1:8080/api/members",
         "",
         "ds_memberList=output",
         "",
@@ -110,7 +120,6 @@ this.fn_reload = function() {
     );
 };
 
-// Save changes function
 this.btnSave_onclick = function(obj, e) {
     var ds = this.ds_memberList;
     var changedRows = [];
@@ -118,65 +127,25 @@ this.btnSave_onclick = function(obj, e) {
     for (var i = 0; i < ds.getRowCount(); i++) {
         var rowType = ds.getRowType(i);
         if (rowType == 2 || rowType == 4) {
-            var row = {
+            changedRows.push({
                 id: ds.getColumn(i, "id"),
                 name: ds.getColumn(i, "name"),
                 email: ds.getColumn(i, "email"),
                 isAdmin: ds.getColumn(i, "isAdmin")
-            };
-            changedRows.push(row);
+            });
         }
     }
 
-    if (changedRows.length === 0) {
-        alert("🔍 변경된 내용이 없습니다.");
-        return;
-    }
-
-    // Prepare dataset to send
-    if (this.objects.contains("ds_save")) {
-        this.removeChild("ds_save");
-    }
-    var saveDs = new Dataset("ds_save");
-    saveDs.addColumn("id", "STRING");
-    saveDs.addColumn("name", "STRING");
-    saveDs.addColumn("email", "STRING");
-    saveDs.addColumn("isAdmin", "STRING");
-
-    for (var j = 0; j < changedRows.length; j++) {
-        var r = saveDs.addRow();
-        saveDs.setColumn(r, "id", changedRows[j].id);
-        saveDs.setColumn(r, "name", changedRows[j].name);
-        saveDs.setColumn(r, "email", changedRows[j].email);
-        saveDs.setColumn(r, "isAdmin", changedRows[j].isAdmin);
-    }
-
-    this.addChild("ds_save", saveDs);
-
-    // Send data to API for update
+	trace("changedRows: " + JSON.stringify(changedRows));
     this.transaction(
         "update",
-        "http://127.0.0.1:8080/api/update",  // Your API endpoint
-        "ds_save=ds_save",
+        "http://127.0.0.1:8080/api/update",
         "",
         "",
+        "input=" + JSON.stringify(changedRows),
         "fn_callback",
-        "POST"
+        "PUT"
     );
-};
-
-// Callback after API call
-this.fn_callback = function(svcID, errorCode, errorMsg) {
-    if (svcID == "getMembers") {
-        trace("🔁 멤버 목록 로딩 완료");
-    } else if (svcID == "update") {
-        if (errorCode == 0) {
-            alert("✅ 변경사항이 저장되었습니다.");
-            this.fn_reload();  // Reload member list after update
-        } else {
-            alert("❌ 저장 실패: " + errorMsg);
-        }
-    }
 };]]></Script>
   </Form>
 </FDL>

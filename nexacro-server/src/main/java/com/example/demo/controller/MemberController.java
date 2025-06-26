@@ -148,38 +148,14 @@ public class MemberController {
         out.println("</Root>");
     }
     
+    @PostMapping("/update")  // <-- consumes 제거
     @Transactional
-    @PostMapping("/update")
-    public void updateMembers(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        String xml = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))
-            .lines().collect(Collectors.joining("\n"));
-
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(new InputSource(new StringReader(xml)));
-
-        NodeList rows = doc.getElementsByTagNameNS("*", "Row");
-        for (int i = 0; i < rows.getLength(); i++) {
-            Element row = (Element) rows.item(i);
-            String id = null;
-            String name = null;
-            String email = null;
-            boolean isAdmin = false;
-
-            NodeList cols = row.getElementsByTagNameNS("*", "Col");
-            for (int j = 0; j < cols.getLength(); j++) {
-                Element col = (Element) cols.item(j);
-                switch (col.getAttribute("id")) {
-                    case "id": id = col.getTextContent(); break;
-                    case "name": name = col.getTextContent(); break;
-                    case "email": email = col.getTextContent(); break;
-                    case "isAdmin":
-                        String val = col.getTextContent();
-                        isAdmin = "1".equals(val) || "true".equalsIgnoreCase(val);
-                        break;
-                }
-            }
+    public void updateMembers(@RequestBody List<Map<String, Object>> rows, HttpServletResponse response) throws IOException {
+        for (Map<String, Object> row : rows) {
+            String id = (String) row.get("id");
+            String name = (String) row.get("name");
+            String email = (String) row.get("email");
+            boolean isAdmin = Boolean.parseBoolean(String.valueOf(row.get("isAdmin")));
 
             if (id != null) {
                 Member member = repo.findById(id).orElse(null);
@@ -192,6 +168,7 @@ public class MemberController {
             }
         }
 
+        // Nexacro 호환 응답
         response.setContentType("text/xml; charset=UTF-8");
         PrintWriter out = response.getWriter();
         out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
