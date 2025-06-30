@@ -8,6 +8,7 @@
             <Format id="default">
               <Columns>
                 <Column size="100"/>
+                <Column size="100"/>
                 <Column size="200"/>
                 <Column size="300"/>
                 <Column size="100"/>
@@ -18,29 +19,33 @@
               </Rows>
               <Band id="head">
                 <Cell text="id"/>
-                <Cell col="1" text="name"/>
-                <Cell col="2" text="email"/>
-                <Cell col="3" text="관리자"/>
+                <Cell col="1" text="pw"/>
+                <Cell col="2" text="name"/>
+                <Cell col="3" text="email"/>
+                <Cell col="4" text="관리자"/>
               </Band>
               <Band id="body">
                 <Cell text="bind:id" edittype="none"/>
-                <Cell col="1" text="bind:name" edittype="normal"/>
-                <Cell col="2" text="bind:email" edittype="normal"/>
-                <Cell col="3" text="bind:isAdmin" edittype="checkbox" displaytype="checkboxcontrol"/>
+                <Cell col="1" text="bind:pw" edittype="none"/>
+                <Cell col="2" text="bind:name" edittype="none"/>
+                <Cell col="3" text="bind:email" edittype="none"/>
+                <Cell col="4" text="bind:isAdmin" edittype="checkbox" displaytype="checkboxcontrol"/>
               </Band>
             </Format>
           </Formats>
         </Grid>
-        <Button id="btnAddUser" text="유저 추가" left="20" top="650" width="100" height="30" visible="false"/>
-        <Button id="btnDeleteUser" text="유저 삭제" left="130" top="650" width="100" height="30" visible="false"/>
-        <Button id="btnSaveUser" text="저장" left="880" top="640" width="100" height="30" visible="false" onclick="btnSave_onclick"/>
-        <Static id="userName" taborder="3" left="998" top="16" width="265" height="44"/>
+        <Button id="btnAddUser" text="유저 추가" left="20" top="650" width="100" height="30" visible="false" onclick="btnAddUser_onclick"/>
+        <Button id="btnDeleteUser" text="유저 삭제" left="130" top="650" width="100" height="30" visible="false" onclick="btnDeleteUser_onclick"/>
+        <Button id="btnSaveUser" text="저장" left="1150" top="645" width="100" height="30" visible="false" onclick="btnSaveUser_onclick"/>
+        <Static id="userName" taborder="3" left="768" top="16" width="265" height="44"/>
+        <Button id="logoutBtn" taborder="5" text="로그아웃" left="1085" top="18" width="180" height="33" onclick="logoutBtn_onclick"/>
       </Layout>
     </Layouts>
     <Objects>
       <Dataset id="ds_memberList">
         <ColumnInfo>
           <Column id="id" type="STRING" size="256"/>
+          <Column id="pw" type="STRING" size="256"/>
           <Column id="name" type="STRING" size="256"/>
           <Column id="email" type="STRING" size="256"/>
           <Column id="isAdmin" type="STRING" size="10"/>
@@ -54,9 +59,14 @@
     this._isAdmin = app.login_isAdmin;
     this.btnSaveUser.set_visible(true);
     this.fn_reload();
+	
+	trace('_login_id = ' + _login_id);
+	trace('app.login_userName = ' + app.login_userName);
+	trace('_isAdmin = ' + _isAdmin);
 };
 
 this.fn_callback = function(svcID, errorCode, errorMsg) { 
+	trace('svcID = ' + svcID);
     if (svcID === "getMembers") {
         if (errorCode != 0) {
             alert("❌ 멤버 불러오기 실패: " + errorMsg);
@@ -66,20 +76,26 @@ this.fn_callback = function(svcID, errorCode, errorMsg) {
         var isAdmin = this._isAdmin;
         var grid = this.memberGrid;
 
-        grid.setFormatColProperty(0, "size", 0); // ID 숨김
-
         if (isAdmin === true || isAdmin === "true") {
-            grid.setFormatColProperty(3, "size", 100); // 관리자 컬럼 보임
+			grid.setFormatColProperty(0, "size", 100); // ID 보임
+            grid.setFormatColProperty(4, "size", 100); // 관리자 컬럼 보임
+			this.btnAddUser.set_visible(true);
+			this.btnDeleteUser.set_visible(true);
         } else {
-            grid.setFormatColProperty(3, "size", 0); // 관리자 컬럼 숨김
+			grid.setFormatColProperty(0, "size", 0); // ID 숨김
+			grid.setFormatColProperty(1, "size", 0); // 비밀번호 컬럼 숨김
+            grid.setFormatColProperty(4, "size", 0); // 관리자 컬럼 숨김
         }
     }
-
-    if (svcID === "update") {
-        if (errorCode == 0) {
-            alert("✅ 변경사항 저장 완료!");
+	else if (svcID === "update") {
+		if (errorCode != 0) {
+            alert("❌ 멤버 수정 실패: " + errorMsg);
+            return;
         }
-    }
+		else {
+			alert("✅ 멤버 수정 완료!");
+		}
+	}
 };
 
 // ✅ 사용자가 클릭할 때 편집 가능 여부 판단
@@ -94,16 +110,14 @@ this.memberGrid_oncellclick = function(obj, e) {
     var rowId = ds.getColumn(e.row, "id");
 
     if (isAdmin === true || isAdmin === "true") {
+		grid.setCellProperty("body", 0, "edittype", "normal");
         grid.setCellProperty("body", 1, "edittype", "normal");
         grid.setCellProperty("body", 2, "edittype", "normal");
+        grid.setCellProperty("body", 3, "edittype", "normal");
     } else {
-        // 본인 행일 경우에만 편집 허용
-        if ("" + rowId === "" + loginId) {
-            grid.setCellProperty("body", 1, "edittype", "normal");
+        if ("" + rowId === "" + loginId) { // 본인 행일 경우에만 편집 허용
             grid.setCellProperty("body", 2, "edittype", "normal");
-        } else {
-            grid.setCellProperty("body", 1, "edittype", "none");
-            grid.setCellProperty("body", 2, "edittype", "none");
+            grid.setCellProperty("body", 3, "edittype", "normal");
         }
     }
 };
@@ -120,32 +134,97 @@ this.fn_reload = function() {
     );
 };
 
-this.btnSave_onclick = function(obj, e) {
-    var ds = this.ds_memberList;
+this.btnSaveUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
+{
+	var ds = this.ds_memberList;
     var changedRows = [];
 
     for (var i = 0; i < ds.getRowCount(); i++) {
         var rowType = ds.getRowType(i);
-        if (rowType == 2 || rowType == 4) {
+        if (rowType == 2 || rowType == 4 || rowType == 8) {
             changedRows.push({
                 id: ds.getColumn(i, "id"),
+				pw: ds.getColumn(i, "pw"),
                 name: ds.getColumn(i, "name"),
                 email: ds.getColumn(i, "email"),
-                isAdmin: ds.getColumn(i, "isAdmin")
+                isAdmin: ds.getColumn(i, "isAdmin"),
+				rowType: rowType
             });
         }
     }
 
-	trace("changedRows: " + JSON.stringify(changedRows));
+	trace("changedRows JSON: " + changedRows);
+    var jsonStr = encodeURIComponent(JSON.stringify(changedRows)); // 반드시 인코딩
+
+    // transaction 호출 (인코딩된 JSON 문자열을 arguments로 보냄)
     this.transaction(
-        "update",
-        "http://127.0.0.1:8080/api/update",
-        "",
-        "",
-        "input=" + JSON.stringify(changedRows),
-        "fn_callback",
-        "PUT"
+        "update", // transaction id
+        "http://127.0.0.1:8080/api/update", // URL
+        "", // inData
+        "", // outData
+        "input=" + jsonStr, // arguments
+        "fn_callback", // callback
+        "POST" // HTTP method
     );
+};
+
+this.logoutBtn_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
+{
+	var app = nexacro.getApplication();
+
+    // 1. 전역 로그인 정보 초기화
+    app.login_userId = null;
+    app.login_userName = null;
+    app.login_isAdmin = null;
+
+    // 2. 로그인 화면으로 이동
+    var workframe = app.mainframe.frame || app.mainframe.VFrameSet || app.mainframe.frames[0];
+    if (workframe && workframe.set_formurl) {
+        workframe.set_formurl("FrameBase::Form_Login.xfdl");
+    } else {
+        alert("❗ WorkFrame을 찾을 수 없거나 set_formurl 지원 안 함");
+    }
+};
+
+this.btnAddUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
+{
+	var ds = this.ds_memberList;
+
+    // 1. 새로운 row 추가 (마지막에 삽입)
+    var newRow = ds.addRow();
+
+    // 2. 초기값 설정 (선택)
+    ds.setColumn(newRow, "id", "");           // 아이디는 사용자가 직접 입력
+    ds.setColumn(newRow, "name", "");         // 이름도 직접 입력
+    ds.setColumn(newRow, "email", "");
+    ds.setColumn(newRow, "isAdmin", false);   // 기본값: 일반 사용자
+
+    // 3. Grid에서 포커스 주기 (선택)
+    this.memberGrid.setFocus();
+    this.memberGrid.setCellPos(0);        // 첫 번째 컬럼 선택
+    this.memberGrid.showEditor(true);
+};
+
+this.btnDeleteUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
+{
+	var grid = this.memberGrid;
+	var ds = grid.getBindDataset(); // Grid에 바인딩된 Dataset 가져오기
+    var row = ds.rowposition;       // 현재 선택된 row의 index
+
+	if (ds.getRowCount() === 0) {
+		alert("삭제할 유저가 없습니다.");
+		return;
+	}
+
+    if (row < 0) {
+        alert("삭제할 유저를 선택하세요.");
+        return;
+    }
+
+    var confirmDelete = confirm("정말로 선택한 유저를 삭제하시겠습니까?");
+    if (confirmDelete) {
+        ds.deleteRow(row); // ✅ Dataset에서 해당 row 삭제
+    }
 };]]></Script>
   </Form>
 </FDL>

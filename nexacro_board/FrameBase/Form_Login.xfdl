@@ -63,6 +63,12 @@ this.login_btn_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
 this.loginResult = function(svcID, errorCode, errorMsg) {
     var app = nexacro.getApplication();
 
+	 // ❗ 로그인 실패 처리
+    if (errorCode != 0) {
+        alert("로그인에 실패했습니다.\n오류 코드: " + errorCode + "\n오류 메시지: " + errorMsg);
+        return;
+    }
+
     app.login_userId = this.id_input.value;
 
     // ✅ Dataset에서 직접 읽기
