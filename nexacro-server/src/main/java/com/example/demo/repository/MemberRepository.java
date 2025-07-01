@@ -15,7 +15,6 @@ import jakarta.transaction.Transactional;
 
 @Repository
 public interface MemberRepository extends JpaRepository<Member, String> {
-	// 로그인 시 사용할 메서드
-    Optional<Member> findByIdAndPw(String id, String pw);
-    List<Member> findAll();
+    Optional<Member> findByIdAndPw(String id, String pw); // 로그인
+    List<Member> findAll(); // 회원 리스트
 }

@@ -193,7 +193,7 @@ public class MemberController {
 
             if (id == null) continue;
 
-            if (rowType == 8) { // ✅ 삭제된 row
+            if (rowType == 8) { // 삭제
                 repo.deleteById(id);
                 continue;
             }
