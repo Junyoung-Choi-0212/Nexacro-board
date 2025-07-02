@@ -60,9 +60,11 @@
     this.btnSaveUser.set_visible(true);
     this.fn_reload();
 	
-	trace('_login_id = ' + _login_id);
+	trace('_login_id = ' + this._login_id);
 	trace('app.login_userName = ' + app.login_userName);
-	trace('_isAdmin = ' + _isAdmin);
+	trace('_isAdmin = ' + this._isAdmin);
+	
+	this.deletedRows = [];
 };
 
 this.fn_callback = function(svcID, errorCode, errorMsg) { 
@@ -141,6 +143,7 @@ this.btnSaveUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
 
     for (var i = 0; i < ds.getRowCount(); i++) {
         var rowType = ds.getRowType(i);
+		trace('rowType: ' + rowType);
 		/*
 			0: dataset.rowtype_empty(존재하지 않음)
 			1: dataset.rowtype_normal(초기 행 상태)
@@ -149,7 +152,7 @@ this.btnSaveUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
 			8: dataset.rowtype_delete(삭제)
 			16: dataset.rowtype_group(그룹 행)
 		*/
-        if (rowType == 2 || rowType == 4 || rowType == 8) {
+        if (rowType == 2 || rowType == 4) {
             changedRows.push({
                 id: ds.getColumn(i, "id"),
 				pw: ds.getColumn(i, "pw"),
@@ -161,7 +164,9 @@ this.btnSaveUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInfo)
         }
     }
 
-	trace("changedRows JSON: " + changedRows);
+	changedRows = changedRows.concat(this.deletedRows) // 삭제 유저 따로 처리
+
+	trace("changedRows JSON: " + JSON.stringify(changedRows));
     var jsonStr = encodeURIComponent(JSON.stringify(changedRows)); // 반드시 인코딩
 
     // transaction 호출 (인코딩된 JSON 문자열을 arguments로 보냄)
@@ -231,6 +236,15 @@ this.btnDeleteUser_onclick = function(obj:nexacro.Button,e:nexacro.ClickEventInf
 
     var confirmDelete = confirm("정말로 선택한 유저를 삭제하시겠습니까?");
     if (confirmDelete) {
+		this.deletedRows.push({
+			id: ds.getColumn(row, "id"),
+			pw: ds.getColumn(row, "pw"),
+			name: ds.getColumn(row, "name"),
+			email: ds.getColumn(row, "email"),
+			isAdmin: ds.getColumn(row, "isAdmin"),
+			rowType: 8 // 삭제
+		});
+	
         ds.deleteRow(row); // ✅ Dataset에서 해당 row 삭제
     }
 };]]></Script>

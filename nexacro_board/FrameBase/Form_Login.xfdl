@@ -69,6 +69,7 @@ this.loginResult = function(svcID, errorCode, errorMsg) {
         return;
     }
 
+	trace('id_input.value: ' + this.id_input.value)
     app.login_userId = this.id_input.value;
 
     // ✅ Dataset에서 직접 읽기
